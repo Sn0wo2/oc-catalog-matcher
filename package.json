@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@opencode/plugin": "2.0.18",
-    "deepmerge-ts": "^8.0.2",
     "dice-coefficient": "^2.1.1",
     "es-toolkit": "^1.52.0",
     "jsonc-parser": "^3.3.1"
