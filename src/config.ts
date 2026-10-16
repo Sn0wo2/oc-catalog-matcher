@@ -1,6 +1,8 @@
 import type { Location } from "@opencode/plugin";
-import { configPaths, parseConfig } from "@sn0wo2/oc-utils";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { isPlainObject as isRecord, kebabCase } from "es-toolkit";
+import { parse, type ParseError } from "jsonc-parser";
 import { mergeRecords } from "./shared";
 
 export type Target = {
@@ -18,6 +20,60 @@ export function targetKey(
   return `${target.providerID}\0${target.configKey}`;
 }
 
+function configPaths(
+  location?: Pick<Location.Info, "directory" | "project">,
+): string[] {
+  const names = ["opencode.json", "opencode.jsonc"];
+  const globalDirectory =
+    process.env.OPENCODE_CONFIG_DIR?.trim() ||
+    join(
+      process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config"),
+      "opencode",
+    );
+  const paths = names.map((name) => join(globalDirectory, name));
+  if (location) {
+    const directories: string[] = [];
+    const root = resolve(location.project.directory);
+    let current = resolve(location.directory);
+    while (true) {
+      directories.unshift(current);
+      if (
+        process.platform === "win32"
+          ? current.toLowerCase() === root.toLowerCase()
+          : current === root
+      )
+        break;
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+    paths.push(
+      ...directories.flatMap((directory) =>
+        names.map((name) => join(directory, name)),
+      ),
+      ...directories.flatMap((directory) =>
+        names.map((name) => join(directory, ".opencode", name)),
+      ),
+    );
+  }
+  return paths;
+}
+
+function parseConfig(
+  text: string,
+  source = "OpenCode config",
+): Record<string, unknown> {
+  const errors: ParseError[] = [];
+  const config: unknown = parse(text, errors, { allowTrailingComma: true });
+  const first = errors[0];
+  if (first)
+    throw new SyntaxError(
+      `${source}: JSONC syntax error near offset ${first.offset} (code ${first.error})`,
+    );
+  if (!isRecord(config)) throw new TypeError(`${source} must be an object`);
+  return config;
+}
+
 export async function loadTargets(
   location: Location.Info,
 ): Promise<Map<string, Target>> {
@@ -29,7 +85,7 @@ export async function loadTargets(
         .catch(() => "");
       if (!text) return undefined;
       try {
-        return parseConfig(text);
+        return parseConfig(text, path);
       } catch (error) {
         console.warn(
           `[model-catalog-match] ignoring invalid config at ${path}`,
@@ -53,6 +109,8 @@ export async function loadTargets(
         const cataID =
           (typeof configuration.cataID === "string" &&
             configuration.cataID.trim()) ||
+          (typeof configuration.modelID === "string" &&
+            configuration.modelID.trim()) ||
           previous?.cataID;
         targets.set(targetKey({ providerID, configKey }), {
           providerID,

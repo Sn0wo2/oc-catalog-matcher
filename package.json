@@ -16,10 +16,10 @@
   },
   "dependencies": {
     "@opencode/plugin": "2.0.18",
-    "@sn0wo2/oc-utils": "^0.1.0",
     "deepmerge-ts": "^8.0.2",
     "dice-coefficient": "^2.1.1",
-    "es-toolkit": "^1.52.0"
+    "es-toolkit": "^1.52.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",

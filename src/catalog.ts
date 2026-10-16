@@ -28,53 +28,51 @@ const OFFICIAL_PROVIDER_STEMS: Readonly<Record<string, string>> = {
 };
 
 export function listCatalog(
-  providers: readonly { models: ReadonlyMap<string, Model.Info> }[],
+  models: readonly Model.Info[],
 ): CatalogEntry[] {
-  return providers.flatMap((record) =>
-    [...record.models.values()].flatMap((model) => {
-      const metadata = explicitMetadata(model);
-      delete metadata.enabled;
-      const providerKey = kebabCase(model.providerID);
-      const family = model.family;
-      return [
-        {
-          providerID: model.providerID,
-          modelID: model.id,
-          modelKeys: uniq(
-            [model.id, model.modelID].flatMap((id) =>
-              [id, id.split("/").at(-1) ?? ""].map(kebabCase),
-            ),
-          ).filter(Boolean),
-          providerKey,
-          ...(family === undefined ? {} : { family }),
-          official:
-            family !== undefined &&
-            Object.entries(OFFICIAL_PROVIDER_STEMS).some(
-              ([stem, provider]) =>
-                family.startsWith(stem) && provider === providerKey,
-            ),
-          completeness:
-            (metadata.limit !== undefined || metadata.capabilities !== undefined
-              ? 2
-              : 0) +
-            (metadata.cost !== undefined ? 2 : 0) +
-            (metadata.variants !== undefined ? 2 : 0) +
-            (metadata.family !== undefined ||
-            metadata.compatibility !== undefined ||
-            metadata.time !== undefined
-              ? 2
-              : 0) +
-            (metadata.settings !== undefined ||
-            metadata.headers !== undefined ||
-            metadata.body !== undefined
-              ? 2
-              : 0),
-          metadata,
-          model,
-        } satisfies CatalogEntry,
-      ];
-    }),
-  );
+  return models.flatMap((model) => {
+    const metadata = explicitMetadata(model);
+    delete metadata.enabled;
+    const providerKey = kebabCase(model.providerID);
+    const family = model.family;
+    return [
+      {
+        providerID: model.providerID,
+        modelID: model.id,
+        modelKeys: uniq(
+          [model.id, model.modelID].flatMap((id) =>
+            [id, id.split("/").at(-1) ?? ""].map(kebabCase),
+          ),
+        ).filter(Boolean),
+        providerKey,
+        ...(family === undefined ? {} : { family }),
+        official:
+          family !== undefined &&
+          Object.entries(OFFICIAL_PROVIDER_STEMS).some(
+            ([stem, provider]) =>
+              family.startsWith(stem) && provider === providerKey,
+          ),
+        completeness:
+          (metadata.limit !== undefined || metadata.capabilities !== undefined
+            ? 2
+            : 0) +
+          (metadata.cost !== undefined ? 2 : 0) +
+          (metadata.variants !== undefined ? 2 : 0) +
+          (metadata.family !== undefined ||
+          metadata.compatibility !== undefined ||
+          metadata.time !== undefined
+            ? 2
+            : 0) +
+          (metadata.settings !== undefined ||
+          metadata.headers !== undefined ||
+          metadata.body !== undefined
+            ? 2
+            : 0),
+        metadata,
+        model,
+      } satisfies CatalogEntry,
+    ];
+  });
 }
 
 export function explicitMetadata(model: Model.Info): MergeLayer {

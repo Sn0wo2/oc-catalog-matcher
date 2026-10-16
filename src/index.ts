@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode/plugin";
+import { Plugin, type Model } from "@opencode/plugin";
 import { kebabCase } from "es-toolkit";
 import { listCatalog } from "./catalog";
 import { loadTargets, targetKey } from "./config";
@@ -9,9 +9,17 @@ export default Plugin.define({
   id: "oc-catalog-matcher",
   setup: async (ctx) => {
     const targets = await loadTargets(ctx.location);
-    const registration = await ctx.provider.transform((draft) => {
+    // Model transforms run after config-defined models exist as candidates but
+    // before the late config fold re-applies config fields, so edits made here
+    // land on the final definitions (provider transforms never see config
+    // providers at all).
+    const registration = await ctx.model.transform((draft) => {
       try {
-        const catalogEntries = listCatalog(draft.list());
+        // draft.list() yields DeepMutable copies; the catalog builder only
+        // reads them, so the wider mutable view is safe to narrow here.
+        const catalogEntries = listCatalog(
+          draft.list() as unknown as Model.Info[],
+        );
         const pending = new Map(targets);
         for (const entry of catalogEntries) {
           if (entry.model.id === entry.model.modelID) continue;
@@ -44,14 +52,21 @@ export default Plugin.define({
           } else {
             unmatched++;
           }
-          draft.models.update(target.providerID, target.configKey, (model) => {
-            applyMetadata(
-              model as unknown as CatalogModel,
-              target,
-              donorMatch,
-              draft.get(target.providerID)?.provider.body,
+          try {
+            draft.update(target.providerID, target.configKey, (model) => {
+              applyMetadata(
+                model as unknown as CatalogModel,
+                target,
+                donorMatch,
+                draft.provider.get(target.providerID)?.provider.body,
+              );
+            });
+          } catch (error) {
+            console.warn(
+              `[model-catalog-match] failed to update ${target.providerID}/${target.configKey}`,
+              error,
             );
-          });
+          }
         }
         if (fuzzyReport.length > 0) {
           console.warn(
