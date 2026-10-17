@@ -1,6 +1,6 @@
 {
   "name": "oc-catalog-matcher",
-  "description": "Stop hand-writing model metadata",
+  "description": "Stop hand-writing OpenCode2 model metadata",
   "type": "module",
   "files": [
     "src"
