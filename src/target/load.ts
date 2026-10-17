@@ -11,12 +11,6 @@ export type Target = {
   providerKey: string;
 };
 
-export function targetKey(
-  target: Pick<Target, "providerID" | "configKey">,
-): string {
-  return `${target.providerID}\0${target.configKey}`;
-}
-
 export async function loadTargets(
   location: Location.Info,
 ): Promise<Map<string, Target>> {
@@ -46,13 +40,13 @@ export async function loadTargets(
       if (!isPlainObject(rawProvider) || !isPlainObject(rawProvider.models))
         continue;
       for (const [configKey, rawModel] of Object.entries(rawProvider.models)) {
-        const previous = targets.get(targetKey({ providerID, configKey }));
+        const previous = targets.get(`${providerID}\0${configKey}`);
         const raw = isPlainObject(rawModel) ? rawModel : undefined;
         const cataID =
           (typeof raw?.cataID === "string" && raw.cataID.trim()) ||
           (typeof raw?.modelID === "string" && raw.modelID.trim()) ||
           previous?.cataID;
-        targets.set(targetKey({ providerID, configKey }), {
+        targets.set(`${providerID}\0${configKey}`, {
           providerID,
           configKey,
           modelKey: kebabCase(cataID ?? configKey),

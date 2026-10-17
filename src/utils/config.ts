@@ -8,13 +8,6 @@ export function configPaths(
   location: Pick<Location.Info, "directory" | "project">,
 ): string[] {
   const names = ["opencode.json", "opencode.jsonc"];
-  const globalDirectory =
-    process.env.OPENCODE_CONFIG_DIR?.trim() ||
-    join(
-      process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config"),
-      "opencode",
-    );
-  const paths = names.map((name) => join(globalDirectory, name));
   const directories: string[] = [];
   const root = resolve(location.project.directory);
   let current = resolve(location.directory);
@@ -31,7 +24,11 @@ export function configPaths(
     current = parent;
   }
   return [
-    ...paths,
+    ...names.map((name) => join(process.env.OPENCODE_CONFIG_DIR?.trim() ||
+    join(
+      process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config"),
+      "opencode",
+    ), name)),
     ...directories.flatMap((directory) =>
       names.map((name) => join(directory, name)),
     ),

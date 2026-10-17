@@ -2,7 +2,7 @@ import { diceCoefficient } from "dice-coefficient";
 import { isEqual, kebabCase, maxBy, orderBy, uniq } from "es-toolkit";
 import { isEmptyObject } from "es-toolkit/predicate";
 import { Model } from "@opencode/plugin";
-import { targetKey, type Target } from "../target/load.ts";
+import {type Target } from "../target/load.ts";
 
 export const MERGEABLE_KEYS = [
   "name",
@@ -156,7 +156,7 @@ export function matchDonors(
     targets.map((target) => {
       const exact = donors(target, [target.modelKey]);
       if (exact.length > 0)
-        return [targetKey(target), best(target, exact, 100)];
+        return [`${target.providerID}\0${target.configKey}`, best(target, exact, 100)];
       const scored = [...index.keys()]
         .map((key) => ({ key, score: diceCoefficient(target.modelKey, key) }))
         .sort((left, right) => right.score - left.score);
@@ -168,11 +168,11 @@ export function matchDonors(
         const tier = donors(target, tierKeys);
         if (tier.length > 0)
           return [
-            targetKey(target),
+            `${target.providerID}\0${target.configKey}`,
             best(target, tier, Math.round(max * 1000) / 10),
           ];
       }
-      return [targetKey(target), undefined];
+      return [`${target.providerID}\0${target.configKey}`, undefined];
     }),
   );
 }

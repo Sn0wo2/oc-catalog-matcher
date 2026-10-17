@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin";
 import { matchDonors, MERGEABLE_KEYS } from "./match/donor.ts";
-import { loadTargets, targetKey } from "./target/load.ts";
+import { loadTargets } from "./target/load.ts";
 
 const CONNECTION_KEYS = new Set(["settings", "headers", "body"]);
 
@@ -16,7 +16,7 @@ export default Plugin.define({
         const fuzzy: string[] = [];
         let unmatched = 0;
         for (const target of targets.values()) {
-          const match = matches.get(targetKey(target));
+          const match = matches.get(`${target.providerID}\0${target.configKey}`);
           if (!match) unmatched++;
           else if (match.modelScore < 100)
             fuzzy.push(
