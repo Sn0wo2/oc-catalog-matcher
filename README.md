@@ -20,3 +20,7 @@ Find your OpenCode2 config at ~/.config/opencode.jsonc
   ]
 }
 ```
+
+Set `providers.<providerID>.cataID` to a preferred catalog provider ID. If unavailable, fall back to the catalog provider that best matches providerID.
+
+Similarly, set `providers.<providerID>.models.<modelID>.cataID` to a preferred catalog model ID. If unavailable, fall back to the catalog model that best matches modelID.

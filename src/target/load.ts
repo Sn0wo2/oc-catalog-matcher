@@ -7,7 +7,8 @@ export type Target = {
   providerID: string;
   configKey: string;
   cataID?: string;
-  modelKey: string;
+  providerCataID?: string;
+  modelKeys: readonly string[];
   providerKey: string;
 };
 
@@ -32,6 +33,18 @@ export async function loadTargets(
       }
     }),
   );
+  const providerCataIDs = new Map<string, string>();
+  for (const document of documents) {
+    if (!document || !isPlainObject(document.providers)) continue;
+    for (const [providerID, rawProvider] of Object.entries(
+      document.providers,
+    )) {
+      if (!isPlainObject(rawProvider)) continue;
+      const cataID =
+        typeof rawProvider.cataID === "string" && rawProvider.cataID.trim();
+      if (cataID) providerCataIDs.set(providerID, cataID);
+    }
+  }
   for (const document of documents) {
     if (!document || !isPlainObject(document.providers)) continue;
     for (const [providerID, rawProvider] of Object.entries(
@@ -39,6 +52,7 @@ export async function loadTargets(
     )) {
       if (!isPlainObject(rawProvider) || !isPlainObject(rawProvider.models))
         continue;
+      const providerCataID = providerCataIDs.get(providerID);
       for (const [configKey, rawModel] of Object.entries(rawProvider.models)) {
         const previous = targets.get(`${providerID}\0${configKey}`);
         const raw = isPlainObject(rawModel) ? rawModel : undefined;
@@ -46,12 +60,25 @@ export async function loadTargets(
           (typeof raw?.cataID === "string" && raw.cataID.trim()) ||
           (typeof raw?.modelID === "string" && raw.modelID.trim()) ||
           previous?.cataID;
+        const modelKeys = [
+          ...new Set(
+            [
+              cataID,
+              typeof raw?.modelID === "string" ? raw.modelID.trim() : undefined,
+              previous?.cataID,
+              configKey,
+            ]
+              .filter((id): id is string => Boolean(id))
+              .map(kebabCase),
+          ),
+        ];
         targets.set(`${providerID}\0${configKey}`, {
           providerID,
           configKey,
-          modelKey: kebabCase(cataID ?? configKey),
+          modelKeys,
           providerKey: kebabCase(providerID),
           ...(cataID === undefined ? {} : { cataID }),
+          ...(providerCataID === undefined ? {} : { providerCataID }),
         });
       }
     }

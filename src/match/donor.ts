@@ -128,11 +128,11 @@ export function matchDonors(
   ): ScoredMatch => {
     const composite = (entry: CatalogEntry) =>
       diceCoefficient(target.providerKey, entry.providerKey) * 100 +
-      (entry.official ? 10 : 0) +
       entry.completeness;
+    const official = pool.filter((entry) => entry.official);
     const candidate = maxBy(
       orderBy(
-        pool,
+        official.length > 0 ? official : pool,
         [(entry) => `${entry.providerID}\0${entry.modelID}`],
         ["asc"],
       ),
@@ -144,21 +144,41 @@ export function matchDonors(
       providerScore: Math.round(composite(candidate) * 100) / 100,
     };
   };
-  const donors = (target: Target, keys: readonly string[]): CatalogEntry[] =>
-    uniq(keys.flatMap((key) => index.get(key) ?? [])).filter(
+  const donors = (target: Target, keys: readonly string[]): CatalogEntry[] => {
+    const providerCataID = target.providerCataID
+      ? kebabCase(target.providerCataID)
+      : undefined;
+    const candidates = uniq(keys.flatMap((key) => index.get(key) ?? [])).filter(
       (entry) =>
         entry.model.id === entry.model.modelID &&
         (entry.providerID !== target.providerID ||
           entry.modelID !== target.configKey) &&
         !isEmptyObject(entry.metadata),
     );
+    const preferred = providerCataID
+      ? candidates.filter((entry) => entry.providerKey === providerCataID)
+      : [];
+    return preferred.length > 0 ? preferred : candidates;
+  };
   return new Map(
     targets.map((target) => {
-      const exact = donors(target, [target.modelKey]);
-      if (exact.length > 0)
-        return [`${target.providerID}\0${target.configKey}`, best(target, exact, 100)];
+      for (const modelKey of target.modelKeys) {
+        const exact = donors(target, [modelKey]);
+        if (exact.length > 0)
+          return [
+            `${target.providerID}\0${target.configKey}`,
+            best(target, exact, 100),
+          ];
+      }
       const scored = [...index.keys()]
-        .map((key) => ({ key, score: diceCoefficient(target.modelKey, key) }))
+        .map((key) => ({
+          key,
+          score: Math.max(
+            ...target.modelKeys.map((modelKey) =>
+              diceCoefficient(modelKey, key),
+            ),
+          ),
+        }))
         .sort((left, right) => right.score - left.score);
       for (let i = 0; i < scored.length;) {
         const max = scored[i]!.score;
