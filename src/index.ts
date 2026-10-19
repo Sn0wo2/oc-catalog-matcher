@@ -8,13 +8,14 @@ export default Plugin.define({
   setup: async (ctx) => {
     const targets = await loadTargets(ctx.location);
     let catalogMatches = new Map<string, MatchResult>();
-    let resolveCatalogMatches!: () => void;
+    let resolveCatalogMatches = () => {};
+    const catalogMatchesReady = new Promise<void>((resolve) => {
+      resolveCatalogMatches = resolve;
+    });
     const rpc = await ctx.rpc.register(matchRpc, {
       lookup: async (input) => {
         const { providerID, modelID } = input as MatchInput;
-        await new Promise<void>((resolve) => {
-          resolveCatalogMatches = resolve;
-        });
+        await catalogMatchesReady;
         return (
           catalogMatches.get(`${providerID}\0${modelID}`) ?? {
             matched: false,
@@ -77,7 +78,6 @@ export default Plugin.define({
           }
         }
         catalogMatches = nextCatalogMatches;
-        resolveCatalogMatches();
         if (fuzzy.length > 0)
           console.warn(
             `[model-catalog-match] fuzzy matches (${fuzzy.length}):\n  ` +
@@ -90,6 +90,7 @@ export default Plugin.define({
           );
       } catch (error) {
         console.warn("[model-catalog-match] transform failed", error);
+      } finally {
         resolveCatalogMatches();
       }
     });
