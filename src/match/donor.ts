@@ -2,7 +2,7 @@ import { diceCoefficient } from "dice-coefficient";
 import { isEqual, kebabCase, maxBy, orderBy, uniq } from "es-toolkit";
 import { isEmptyObject } from "es-toolkit/predicate";
 import { Model } from "@opencode/plugin";
-import {type Target } from "../target/load.ts";
+import { type Target } from "../target/load.ts";
 
 export const MERGEABLE_KEYS = [
   "name",
@@ -43,7 +43,7 @@ export function matchDonors(
   providers: readonly { models: ReadonlyMap<string, Model.Info> }[],
   targets: readonly Target[],
 ): Map<string, ScoredMatch | undefined> {
-  const stems: Readonly<Record<string, string>> = {
+  const stems = {
     deepseek: "deepseek",
     claude: "anthropic",
     gemini: "google",
@@ -55,7 +55,7 @@ export function matchDonors(
     minimax: "minimax",
     mistral: "mistral",
   };
-  const entries: CatalogEntry[] = [];
+  const entries = [];
   for (const record of providers) {
     for (const model of record.models.values()) {
       const defaults = Model.Info.default(model.providerID, model.id);
@@ -125,7 +125,7 @@ export function matchDonors(
     target: Target,
     pool: readonly CatalogEntry[],
     modelScore: number,
-  ): ScoredMatch => {
+  ) => {
     const composite = (entry: CatalogEntry) =>
       diceCoefficient(target.providerKey, entry.providerKey) * 100 +
       entry.completeness;
@@ -144,7 +144,7 @@ export function matchDonors(
       providerScore: Math.round(composite(candidate) * 100) / 100,
     };
   };
-  const donors = (target: Target, keys: readonly string[]): CatalogEntry[] => {
+  const donors = (target: Target, keys: readonly string[]) => {
     const providerCataID = target.providerCataID
       ? kebabCase(target.providerCataID)
       : undefined;
@@ -182,7 +182,7 @@ export function matchDonors(
         .sort((left, right) => right.score - left.score);
       for (let i = 0; i < scored.length;) {
         const max = scored[i]!.score;
-        const tierKeys: string[] = [];
+        const tierKeys = [];
         while (i < scored.length && scored[i]!.score >= max - 1e-9)
           tierKeys.push(scored[i++]!.key);
         const tier = donors(target, tierKeys);

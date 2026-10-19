@@ -8,7 +8,7 @@ export function configPaths(
   location: Pick<Location.Info, "directory" | "project">,
 ): string[] {
   const names = ["opencode.json", "opencode.jsonc"];
-  const directories: string[] = [];
+  const directories = [];
   const root = resolve(location.project.directory);
   let current = resolve(location.directory);
   while (true) {
@@ -24,11 +24,16 @@ export function configPaths(
     current = parent;
   }
   return [
-    ...names.map((name) => join(process.env.OPENCODE_CONFIG_DIR?.trim() ||
-    join(
-      process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config"),
-      "opencode",
-    ), name)),
+    ...names.map((name) =>
+      join(
+        process.env.OPENCODE_CONFIG_DIR?.trim() ||
+          join(
+            process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config"),
+            "opencode",
+          ),
+        name,
+      ),
+    ),
     ...directories.flatMap((directory) =>
       names.map((name) => join(directory, name)),
     ),
@@ -43,7 +48,7 @@ export function parseConfig(
   source: string,
 ): Record<string, unknown> {
   const errors: ParseError[] = [];
-  const config: unknown = parse(text, errors, { allowTrailingComma: true });
+  const config = parse(text, errors, { allowTrailingComma: true });
   const first = errors[0];
   if (first)
     throw new SyntaxError(

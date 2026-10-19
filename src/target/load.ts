@@ -60,22 +60,23 @@ export async function loadTargets(
           (typeof raw?.cataID === "string" && raw.cataID.trim()) ||
           (typeof raw?.modelID === "string" && raw.modelID.trim()) ||
           previous?.cataID;
-        const modelKeys = [
-          ...new Set(
-            [
-              cataID,
-              typeof raw?.modelID === "string" ? raw.modelID.trim() : undefined,
-              previous?.cataID,
-              configKey,
-            ]
-              .filter((id): id is string => Boolean(id))
-              .map(kebabCase),
-          ),
-        ];
         targets.set(`${providerID}\0${configKey}`, {
           providerID,
           configKey,
-          modelKeys,
+          modelKeys: [
+            ...new Set(
+              [
+                cataID,
+                typeof raw?.modelID === "string"
+                  ? raw.modelID.trim()
+                  : undefined,
+                previous?.cataID,
+                configKey,
+              ]
+                .filter((id): id is string => Boolean(id))
+                .map(kebabCase),
+            ),
+          ],
           providerKey: kebabCase(providerID),
           ...(cataID === undefined ? {} : { cataID }),
           ...(providerCataID === undefined ? {} : { providerCataID }),
