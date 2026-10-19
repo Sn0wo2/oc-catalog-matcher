@@ -24,13 +24,17 @@ export default Plugin.define({
     });
     const registration = await ctx.model.transform((draft) => {
       try {
-        const matches = matchDonors(draft.provider.list(), [
-          ...targets.values(),
-        ]);
+        const existing = new Set(
+          draft.list().map((model) => `${model.providerID}\0${model.id}`),
+        );
+        const activeTargets = [...targets.values()].filter((target) =>
+          existing.has(`${target.providerID}\0${target.configKey}`),
+        );
+        const matches = matchDonors(draft.provider.list(), activeTargets);
         const nextCatalogMatches = new Map<string, MatchResult>();
         const fuzzy = [];
         let unmatched = 0;
-        for (const target of targets.values()) {
+        for (const target of activeTargets) {
           const key = `${target.providerID}\0${target.configKey}`;
           const match = matches.get(key);
           nextCatalogMatches.set(
