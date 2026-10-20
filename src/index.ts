@@ -23,15 +23,24 @@ export default Plugin.define({
         );
       },
     });
-    const registration = await ctx.model.transform((draft) => {
+    const registration = await ctx.provider.transform((draft) => {
       try {
-        const existing = new Set(
-          draft.list().map((model) => `${model.providerID}\0${model.id}`),
-        );
-        const activeTargets = [...targets.values()].filter((target) =>
-          existing.has(`${target.providerID}\0${target.configKey}`),
-        );
-        const matches = matchDonors(draft.provider.list(), activeTargets);
+        const activeTargets = [...targets.values()];
+        const matches = matchDonors(draft.list(), activeTargets);
+        const configuredModels = new Map<string, Set<string>>();
+        for (const target of activeTargets) {
+          let models = configuredModels.get(target.providerID);
+          if (!models) {
+            models = new Set();
+            configuredModels.set(target.providerID, models);
+          }
+          models.add(target.configKey);
+        }
+        for (const [providerID, models] of configuredModels) {
+          for (const id of draft.get(providerID)?.models.keys() ?? []) {
+            if (!models.has(id)) draft.models.remove(providerID, id);
+          }
+        }
         const nextCatalogMatches = new Map<string, MatchResult>();
         const fuzzy = [];
         let unmatched = 0;
@@ -56,20 +65,26 @@ export default Plugin.define({
                 `(model ${match.modelScore}, provider ${match.providerScore})`,
             );
           try {
-            draft.update(target.providerID, target.configKey, (model) => {
-              if (!match) return;
-              for (const key of MERGEABLE_KEYS) {
-                if (
-                  key === "enabled" ||
-                  (match.candidate.providerID !== target.providerID &&
-                    (key === "settings" || key === "headers" || key === "body"))
-                )
-                  continue;
-                const value = match.candidate.metadata[key];
-                if (value !== undefined)
-                  (model as Record<string, unknown>)[key] = value;
-              }
-            });
+            if (!match) continue;
+            draft.models.update(
+              target.providerID,
+              target.configKey,
+              (model) => {
+                for (const key of MERGEABLE_KEYS) {
+                  if (
+                    key === "enabled" ||
+                    (match.candidate.providerID !== target.providerID &&
+                      (key === "settings" ||
+                        key === "headers" ||
+                        key === "body"))
+                  )
+                    continue;
+                  const value = match.candidate.metadata[key];
+                  if (value !== undefined)
+                    (model as Record<string, unknown>)[key] = value;
+                }
+              },
+            );
           } catch (error) {
             console.warn(
               `[model-catalog-match] failed to update ${target.providerID}/${target.configKey}`,
