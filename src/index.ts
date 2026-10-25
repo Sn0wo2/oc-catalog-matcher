@@ -134,10 +134,6 @@ export default Plugin.define({
         resolveMatches();
       }
     });
-    // The host config plugin rewrites `variants` for configured models in its late
-    // model transform and can resolve none for config-only providers. Re-apply the
-    // donor variants resolved in the provider pass; models that kept variants
-    // (config-provided or integration-backed) are left alone.
     const modelRegistration = await ctx.model.transform((models) => {
       for (const entry of matches.values()) {
         if (!entry.variants) continue;
