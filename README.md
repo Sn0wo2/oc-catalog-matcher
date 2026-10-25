@@ -16,8 +16,8 @@ Find your OpenCode2 config at ~/.config/opencode.jsonc
   // ...
   "plugins": [
     // ...
-    "github:Sn0wo2/oc-catalog-matcher"
-  ]
+    "github:Sn0wo2/oc-catalog-matcher",
+  ],
 }
 ```
 

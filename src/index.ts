@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin";
 import { matchDonors, MERGEABLE_KEYS } from "./match/donor.ts";
+import { resolveVariants } from "./match/variants.ts";
 import { matchRpc, type MatchInput, type MatchResult } from "./rpc.ts";
 import { loadTargets } from "./target/load.ts";
 
@@ -73,6 +74,7 @@ export default Plugin.define({
                 for (const key of MERGEABLE_KEYS) {
                   if (
                     key === "enabled" ||
+                    key === "variants" ||
                     (match.candidate.providerID !== target.providerID &&
                       (key === "settings" ||
                         key === "headers" ||
@@ -83,6 +85,15 @@ export default Plugin.define({
                   if (value !== undefined)
                     (model as Record<string, unknown>)[key] = value;
                 }
+                model.variants = structuredClone(
+                  resolveVariants(
+                    model,
+                    match.candidate.model,
+                    draft.get(target.providerID)?.provider.package ?? "",
+                    draft.get(match.candidate.providerID)?.provider.package ??
+                      "",
+                  ),
+                ) as typeof model.variants;
               },
             );
           } catch (error) {

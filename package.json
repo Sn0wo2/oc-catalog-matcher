@@ -15,7 +15,9 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@opencode/plugin": "^2.0.32",
+    "@effect/platform-node-shared": "4.0.1",
+    "@opencode/core": "2.1.4",
+    "@opencode/plugin": "2.1.4",
     "dice-coefficient": "^2.1.1",
     "es-toolkit": "^1.52.0",
     "jsonc-parser": "^3.3.1"
