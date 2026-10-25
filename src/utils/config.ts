@@ -6,7 +6,7 @@ import type { Location } from "@opencode/plugin";
 
 export function configPaths(
   location: Pick<Location.Info, "directory" | "project">,
-): string[] {
+) {
   const names = ["opencode.json", "opencode.jsonc"];
   const directories = [];
   const root = resolve(location.project.directory);
@@ -43,10 +43,7 @@ export function configPaths(
   ];
 }
 
-export function parseConfig(
-  text: string,
-  source: string,
-): Record<string, unknown> {
+export function parseConfig(text: string, source: string) {
   const errors: ParseError[] = [];
   const config = parse(text, errors, { allowTrailingComma: true });
   const first = errors[0];

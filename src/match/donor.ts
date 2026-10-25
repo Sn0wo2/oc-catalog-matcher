@@ -19,7 +19,7 @@ export const MERGEABLE_KEYS = [
   "enabled",
 ] as const;
 
-export type MergeableKey = (typeof MERGEABLE_KEYS)[number];
+type MergeableKey = (typeof MERGEABLE_KEYS)[number];
 type MergeLayer = Partial<Record<MergeableKey, unknown>>;
 
 type CatalogEntry = {
@@ -33,16 +33,10 @@ type CatalogEntry = {
   metadata: MergeLayer;
 };
 
-type ScoredMatch = {
-  candidate: CatalogEntry;
-  modelScore: number;
-  providerScore: number;
-};
-
 export function matchDonors(
   providers: readonly { models: ReadonlyMap<string, Model.Info> }[],
   targets: readonly Target[],
-): Map<string, ScoredMatch | undefined> {
+) {
   const stems = {
     deepseek: "deepseek",
     claude: "anthropic",
@@ -76,8 +70,6 @@ export function matchDonors(
       const metadata: MergeLayer = {};
       for (const key of MERGEABLE_KEYS)
         if (differs[key]) metadata[key] = structuredClone(model[key]);
-      const providerKey = kebabCase(model.providerID);
-      const family = model.family;
       entries.push({
         providerID: model.providerID,
         modelID: model.id,
@@ -86,12 +78,13 @@ export function matchDonors(
             [id, id.split("/").at(-1) ?? ""].map(kebabCase),
           ),
         ).filter(Boolean),
-        providerKey,
+        providerKey: kebabCase(model.providerID),
         official:
-          family !== undefined &&
+          model.family !== undefined &&
           Object.entries(stems).some(
             ([stem, provider]) =>
-              family.startsWith(stem) && provider === providerKey,
+              model.family!.startsWith(stem) &&
+              provider === kebabCase(model.providerID),
           ),
         completeness:
           (metadata.limit !== undefined || metadata.capabilities !== undefined
@@ -126,22 +119,27 @@ export function matchDonors(
     pool: readonly CatalogEntry[],
     modelScore: number,
   ) => {
-    const composite = (entry: CatalogEntry) =>
-      diceCoefficient(target.providerKey, entry.providerKey) * 100 +
-      entry.completeness;
-    const official = pool.filter((entry) => entry.official);
     const candidate = maxBy(
       orderBy(
-        official.length > 0 ? official : pool,
+        pool.some((entry) => entry.official)
+          ? pool.filter((entry) => entry.official)
+          : pool,
         [(entry) => `${entry.providerID}\0${entry.modelID}`],
         ["asc"],
       ),
-      composite,
+      (entry) =>
+        diceCoefficient(target.providerKey, entry.providerKey) * 100 +
+        entry.completeness,
     )!;
     return {
       candidate,
       modelScore,
-      providerScore: Math.round(composite(candidate) * 100) / 100,
+      providerScore:
+        Math.round(
+          (diceCoefficient(target.providerKey, candidate.providerKey) * 100 +
+            candidate.completeness) *
+            100,
+        ) / 100,
     };
   };
   const donors = (target: Target, keys: readonly string[]) => {

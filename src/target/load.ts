@@ -12,9 +12,7 @@ export type Target = {
   providerKey: string;
 };
 
-export async function loadTargets(
-  location: Location.Info,
-): Promise<Map<string, Target>> {
+export async function loadTargets(location: Location.Info) {
   const targets = new Map<string, Target>();
   const documents = await Promise.all(
     configPaths(location).map(async (path) => {

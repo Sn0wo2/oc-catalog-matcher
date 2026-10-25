@@ -8,9 +8,8 @@ export default Plugin.define({
     let selected: string | undefined;
     let request = 0;
     const showMatch = async ({ providerID, modelID }: MatchInput) => {
-      const key = `${providerID}\0${modelID}`;
-      if (key === selected) return;
-      selected = key;
+      if (`${providerID}\0${modelID}` === selected) return;
+      selected = `${providerID}\0${modelID}`;
       const current = ++request;
       try {
         const match = (await rpc.lookup({
@@ -31,14 +30,13 @@ export default Plugin.define({
         if (current === request) selected = undefined;
       }
     };
-    const stop = ctx.data.on("session.model.selected", (event) => {
+    const model = ctx.ui.model.current();
+    if (model) void showMatch(model);
+    return ctx.data.on("session.model.selected", (event) => {
       void showMatch({
         providerID: event.data.model.providerID,
         modelID: event.data.model.id,
       });
     });
-    const model = ctx.ui.model.current();
-    if (model) void showMatch(model);
-    return stop;
   },
 });

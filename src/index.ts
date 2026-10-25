@@ -1,12 +1,13 @@
 import { Plugin } from "@opencode/plugin";
 import { matchDonors, MERGEABLE_KEYS } from "./match/donor.ts";
-import { resolveVariants } from "./match/variants.ts";
+import { loadCore, resolveVariants } from "./match/variants.ts";
 import { matchRpc, type MatchInput, type MatchResult } from "./rpc.ts";
 import { loadTargets } from "./target/load.ts";
 
 export default Plugin.define({
   id: "oc-catalog-matcher",
   setup: async (ctx) => {
+    await loadCore();
     const targets = await loadTargets(ctx.location);
     let catalogMatches = new Map<string, MatchResult>();
     let resolveCatalogMatches = () => {};
@@ -46,10 +47,11 @@ export default Plugin.define({
         const fuzzy = [];
         let unmatched = 0;
         for (const target of activeTargets) {
-          const key = `${target.providerID}\0${target.configKey}`;
-          const match = matches.get(key);
+          const match = matches.get(
+            `${target.providerID}\0${target.configKey}`,
+          );
           nextCatalogMatches.set(
-            key,
+            `${target.providerID}\0${target.configKey}`,
             match
               ? {
                   matched: true,
