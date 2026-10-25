@@ -1,8 +1,15 @@
-import { Plugin } from "@opencode/plugin";
+import { Plugin, type Model } from "@opencode/plugin";
 import { matchDonors, MERGEABLE_KEYS } from "./match/donor.ts";
 import { loadCore, resolveVariants } from "./match/variants.ts";
 import { matchRpc, type MatchInput, type MatchResult } from "./rpc.ts";
 import { loadTargets } from "./target/load.ts";
+
+type VariantAssignment = {
+  providerID: string;
+  configKey: string;
+  donor: Model.Info;
+  donorProviderPackage: string;
+};
 
 export default Plugin.define({
   id: "oc-catalog-matcher",
@@ -10,6 +17,7 @@ export default Plugin.define({
     await loadCore();
     const targets = await loadTargets(ctx.location);
     let catalogMatches = new Map<string, MatchResult>();
+    let variantAssignments = new Map<string, VariantAssignment>();
     let resolveCatalogMatches = () => {};
     const catalogMatchesReady = new Promise<void>((resolve) => {
       resolveCatalogMatches = resolve;
@@ -44,12 +52,21 @@ export default Plugin.define({
           }
         }
         const nextCatalogMatches = new Map<string, MatchResult>();
+        const nextAssignments = new Map<string, VariantAssignment>();
         const fuzzy = [];
         let unmatched = 0;
         for (const target of activeTargets) {
           const match = matches.get(
             `${target.providerID}\0${target.configKey}`,
           );
+          if (match)
+            nextAssignments.set(`${target.providerID}\0${target.configKey}`, {
+              providerID: target.providerID,
+              configKey: target.configKey,
+              donor: structuredClone(match.candidate.model),
+              donorProviderPackage:
+                draft.get(match.candidate.providerID)?.provider.package ?? "",
+            });
           nextCatalogMatches.set(
             `${target.providerID}\0${target.configKey}`,
             match
@@ -106,6 +123,7 @@ export default Plugin.define({
           }
         }
         catalogMatches = nextCatalogMatches;
+        variantAssignments = nextAssignments;
         if (fuzzy.length > 0)
           console.warn(
             `[model-catalog-match] fuzzy matches (${fuzzy.length}):\n  ` +
@@ -122,8 +140,34 @@ export default Plugin.define({
         resolveCatalogMatches();
       }
     });
+    // The host config plugin rewrites `variants` for configured models in its late
+    // model transform and can resolve none for config-only providers. This runs
+    // after it; models that still have variants (config-provided or surviving)
+    // are left alone.
+    const modelRegistration = await ctx.model.transform((models) => {
+      for (const assignment of variantAssignments.values()) {
+        const model = models.get(assignment.providerID, assignment.configKey);
+        if (!model || model.variants.length > 0) continue;
+        try {
+          const resolved = resolveVariants(
+            model,
+            assignment.donor,
+            models.provider.get(assignment.providerID)?.provider.package ?? "",
+            assignment.donorProviderPackage,
+          );
+          if (resolved.length > 0)
+            model.variants = structuredClone(resolved) as typeof model.variants;
+        } catch (error) {
+          console.warn(
+            `[model-catalog-match] failed to restore variants for ${assignment.providerID}/${assignment.configKey}`,
+            error,
+          );
+        }
+      }
+    });
     return async () => {
       await registration.dispose();
+      await modelRegistration.dispose();
       await rpc.dispose();
     };
   },
