@@ -1,13 +1,13 @@
 export type MatchInput = {
-  providerID: string;
-  modelID: string;
-};
+  providerID: string
+  modelID: string
+}
 
 export type MatchResult = {
-  matched: boolean;
-  catalogProviderID?: string;
-  catalogModelID?: string;
-};
+  matched: boolean
+  catalogProviderID?: string
+  catalogModelID?: string
+}
 
 export const matchRpc = {
   id: "oc-catalog-matcher",
@@ -35,4 +35,4 @@ export const matchRpc = {
     },
   },
   events: {},
-} as const;
+} as const

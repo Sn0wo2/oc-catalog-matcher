@@ -1,42 +1,42 @@
-import { Plugin } from "@opencode/plugin/tui";
-import { matchRpc, type MatchInput, type MatchResult } from "./rpc.ts";
+import { Plugin } from "@opencode/plugin/tui"
+import { type MatchInput, type MatchResult, matchRpc } from "./rpc.ts"
 
 export default Plugin.define({
   id: "oc-catalog-matcher",
   setup: (ctx) => {
-    const rpc = ctx.client.rpc(matchRpc);
-    let selected: string | undefined;
-    let request = 0;
+    const rpc = ctx.client.rpc(matchRpc)
+    let selected: string | undefined
+    let request = 0
     const showMatch = async ({ providerID, modelID }: MatchInput) => {
-      if (`${providerID}\0${modelID}` === selected) return;
-      selected = `${providerID}\0${modelID}`;
-      const current = ++request;
+      if (`${providerID}\0${modelID}` === selected) return
+      selected = `${providerID}\0${modelID}`
+      const current = ++request
       try {
         const match = (await rpc.lookup({
           providerID,
           modelID,
-        })) as MatchResult;
-        if (current !== request) return;
+        })) as MatchResult
+        if (current !== request) return
         if (!match.matched) {
-          selected = undefined;
-          return;
+          selected = undefined
+          return
         }
         ctx.ui.toast.show({
           title: "Catalog match",
           message: `${providerID}/${modelID} → ${match.catalogProviderID}/${match.catalogModelID}`,
           variant: "info",
-        });
+        })
       } catch {
-        if (current === request) selected = undefined;
+        if (current === request) selected = undefined
       }
-    };
-    const model = ctx.ui.model.current();
-    if (model) void showMatch(model);
+    }
+    const model = ctx.ui.model.current()
+    if (model) void showMatch(model)
     return ctx.data.on("session.model.selected", (event) => {
       void showMatch({
         providerID: event.data.model.providerID,
         modelID: event.data.model.id,
-      });
-    });
+      })
+    })
   },
-});
+})
