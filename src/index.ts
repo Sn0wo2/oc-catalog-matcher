@@ -15,6 +15,7 @@ export default Plugin.define({
         target: Target
         result: MatchResult
         variants: Model.Info["variants"] | undefined
+        donor: { model: Model.Info; providerPackage: string } | undefined
       }
     >()
     let resolveMatches = () => {}
@@ -52,6 +53,7 @@ export default Plugin.define({
               target,
               result: { matched: false },
               variants: undefined,
+              donor: undefined,
             })
             continue
           }
@@ -81,6 +83,10 @@ export default Plugin.define({
                 catalogModelID: match.candidate.modelID,
               },
               variants: variants.length > 0 ? variants : undefined,
+              donor: {
+                model: structuredClone(match.candidate.model),
+                providerPackage: draft.get(match.candidate.providerID)?.provider.package ?? "",
+              },
             })
             draft.models.update(target.providerID, target.configKey, (model) => {
               for (const mergeKey of MERGEABLE_KEYS) {
