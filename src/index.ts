@@ -14,7 +14,6 @@ export default Plugin.define({
       {
         target: Target
         result: MatchResult
-        variants: Model.Info["variants"] | undefined
         donor: { model: Model.Info; providerPackage: string } | undefined
       }
     >()
@@ -52,7 +51,6 @@ export default Plugin.define({
             next.set(`${target.providerID}\0${target.configKey}`, {
               target,
               result: { matched: false },
-              variants: undefined,
               donor: undefined,
             })
             continue
@@ -64,17 +62,6 @@ export default Plugin.define({
                 `(model ${match.modelScore}, provider ${match.providerScore})`,
             )
           try {
-            const model = draft.get(target.providerID)?.models.get(target.configKey)
-            const variants = model
-              ? structuredClone(
-                  resolveVariants(
-                    model,
-                    match.candidate.model,
-                    draft.get(target.providerID)?.provider.package ?? "",
-                    draft.get(match.candidate.providerID)?.provider.package ?? "",
-                  ),
-                )
-              : []
             next.set(`${target.providerID}\0${target.configKey}`, {
               target,
               result: {
@@ -82,7 +69,6 @@ export default Plugin.define({
                 catalogProviderID: match.candidate.providerID,
                 catalogModelID: match.candidate.modelID,
               },
-              variants: variants.length > 0 ? variants : undefined,
               donor: {
                 model: structuredClone(match.candidate.model),
                 providerPackage: draft.get(match.candidate.providerID)?.provider.package ?? "",
@@ -122,9 +108,17 @@ export default Plugin.define({
     })
     const modelRegistration = await ctx.model.transform((models) => {
       for (const entry of matches.values()) {
-        if (!entry.variants) continue
+        if (!entry.donor) continue
         const model = models.get(entry.target.providerID, entry.target.configKey)
-        if (model?.variants.length === 0) model.variants = structuredClone(entry.variants) as typeof model.variants
+        if (model?.variants.length !== 0) continue
+        model.variants = structuredClone(
+          resolveVariants(
+            model,
+            entry.donor.model,
+            models.provider.get(entry.target.providerID)?.provider.package ?? "",
+            entry.donor.providerPackage,
+          ),
+        ) as typeof model.variants
       }
     })
     return async () => {
