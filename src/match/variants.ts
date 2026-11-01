@@ -44,7 +44,8 @@ export function resolveVariants(
   if (packageName && packageName === donorPackage) return structuredClone(donor.variants)
   const ids = new Set(donor.variants.map((entry) => String(entry.id)))
   const supports: Support[] = []
-  if ([...ids].some((id) => id !== "none" && id !== "thinking")) supports.push({ type: "effort" })
+  const efforts = [...ids].filter((id) => id !== "thinking")
+  if (efforts.some((id) => id !== "none")) supports.push({ type: "effort", values: efforts })
   if (ids.has("none") || ids.has("thinking")) supports.push({ type: "toggle" })
   const variants = variant.Variant.resolve({ ...model, package: packageName }, supports).filter((entry) =>
     ids.has(entry.id),
