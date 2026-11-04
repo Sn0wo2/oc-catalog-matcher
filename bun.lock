@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode-model-catalog-match",
+      "name": "oc-catalog-matcher",
       "dependencies": {
         "@effect/platform-node-shared": "4.0.1",
         "@opencode/core": "2.1.4",
