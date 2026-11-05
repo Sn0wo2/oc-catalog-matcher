@@ -1,38 +1,15 @@
-export type MatchInput = {
-  providerID: string
-  modelID: string
-}
-
-export type MatchResult = {
-  matched: boolean
-  catalogProviderID?: string
-  catalogModelID?: string
-}
+import { z } from "zod"
 
 export const matchRpc = {
   id: "oc-catalog-matcher",
   methods: {
     lookup: {
-      input: {
-        type: "object",
-        properties: {
-          providerID: { type: "string" },
-          modelID: { type: "string" },
-        },
-        required: ["providerID", "modelID"],
-        additionalProperties: false,
-      },
-      output: {
-        type: "object",
-        properties: {
-          matched: { type: "boolean" },
-          catalogProviderID: { type: "string" },
-          catalogModelID: { type: "string" },
-        },
-        required: ["matched"],
-        additionalProperties: false,
-      },
+      input: z.object({ providerID: z.string(), modelID: z.string() }),
+      output: z.discriminatedUnion("matched", [
+        z.object({ matched: z.literal(false) }),
+        z.object({ matched: z.literal(true), catalogProviderID: z.string(), catalogModelID: z.string() }),
+      ]),
     },
   },
   events: {},
-} as const
+}

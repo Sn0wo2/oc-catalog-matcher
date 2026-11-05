@@ -1,6 +1,6 @@
 import { Model } from "@opencode/plugin"
 import { diceCoefficient } from "dice-coefficient"
-import { isEqual, kebabCase, maxBy, orderBy, uniq } from "es-toolkit"
+import { isEqual, kebabCase, maxBy, orderBy, round, uniq } from "es-toolkit"
 import { isEmptyObject } from "es-toolkit/predicate"
 import type { Target } from "../target/load.ts"
 
@@ -19,9 +19,6 @@ export const MERGEABLE_KEYS = [
   "enabled",
 ] as const
 
-type MergeableKey = (typeof MERGEABLE_KEYS)[number]
-type MergeLayer = Partial<Record<MergeableKey, unknown>>
-
 type CatalogEntry = {
   providerID: string
   modelID: string
@@ -30,30 +27,18 @@ type CatalogEntry = {
   official: boolean
   completeness: number
   model: Model.Info
-  metadata: MergeLayer
+  metadata: Partial<Record<(typeof MERGEABLE_KEYS)[number], unknown>>
 }
 
 export function matchDonors(
   providers: readonly { models: ReadonlyMap<string, Model.Info> }[],
   targets: readonly Target[],
 ) {
-  const stems = {
-    deepseek: "deepseek",
-    claude: "anthropic",
-    gemini: "google",
-    gpt: "openai",
-    grok: "xai",
-    kimi: "moonshotai",
-    glm: "zai",
-    qwen: "alibaba",
-    minimax: "minimax",
-    mistral: "mistral",
-  }
-  const entries = []
+  const entries: CatalogEntry[] = []
   for (const record of providers) {
     for (const model of record.models.values()) {
       const defaults = Model.Info.default(model.providerID, model.id)
-      const differs: Partial<Record<MergeableKey, boolean>> = {
+      const differs: Partial<Record<(typeof MERGEABLE_KEYS)[number], boolean>> = {
         name: model.name !== model.id && model.name !== model.modelID,
         family: model.family !== undefined,
         capabilities: !isEqual(model.capabilities, defaults.capabilities),
@@ -66,8 +51,9 @@ export function matchDonors(
         body: model.body !== undefined && !isEmptyObject(model.body),
         variants: model.variants.length > 0,
       }
-      const metadata: MergeLayer = {}
+      const metadata: Partial<Record<(typeof MERGEABLE_KEYS)[number], unknown>> = {}
       for (const key of MERGEABLE_KEYS) if (differs[key]) metadata[key] = structuredClone(model[key])
+      const providerKey = kebabCase(model.providerID)
       const family = model.family
       entries.push({
         providerID: model.providerID,
@@ -75,12 +61,23 @@ export function matchDonors(
         modelKeys: uniq(
           [model.id, model.modelID].flatMap((id) => [id, id.split("/").at(-1) ?? ""].map(kebabCase)),
         ).filter(Boolean),
-        providerKey: kebabCase(model.providerID),
+        providerKey,
         official:
           family !== undefined &&
-          Object.entries(stems).some(
-            ([stem, provider]) => family.startsWith(stem) && provider === kebabCase(model.providerID),
-          ),
+          (
+            [
+              ["deepseek", "deepseek"],
+              ["claude", "anthropic"],
+              ["gemini", "google"],
+              ["gpt", "openai"],
+              ["grok", "xai"],
+              ["kimi", "moonshotai"],
+              ["glm", "zai"],
+              ["qwen", "alibaba"],
+              ["minimax", "minimax"],
+              ["mistral", "mistral"],
+            ] as const
+          ).some(([stem, provider]) => family.startsWith(stem) && provider === providerKey),
         completeness:
           (metadata.limit !== undefined || metadata.capabilities !== undefined ? 2 : 0) +
           (metadata.cost !== undefined ? 2 : 0) +
@@ -114,9 +111,10 @@ export function matchDonors(
     return {
       candidate,
       modelScore,
-      providerScore:
-        Math.round((diceCoefficient(target.providerKey, candidate.providerKey) * 100 + candidate.completeness) * 100) /
-        100,
+      providerScore: round(
+        diceCoefficient(target.providerKey, candidate.providerKey) * 100 + candidate.completeness,
+        2,
+      ),
     }
   }
   const donors = (target: Target, keys: readonly string[]) => {
@@ -131,10 +129,10 @@ export function matchDonors(
     return preferred.length > 0 ? preferred : candidates
   }
   return new Map(
-    targets.map((target) => {
+    targets.flatMap((target) => {
       for (const modelKey of target.modelKeys) {
         const exact = donors(target, [modelKey])
-        if (exact.length > 0) return [`${target.providerID}\0${target.configKey}`, best(target, exact, 100)]
+        if (exact.length > 0) return [[`${target.providerID}\0${target.configKey}`, best(target, exact, 100)] as const]
       }
       const scored = [...index.keys()]
         .map((key) => {
@@ -157,9 +155,9 @@ export function matchDonors(
         }
         const tier = donors(target, tierKeys)
         if (tier.length > 0)
-          return [`${target.providerID}\0${target.configKey}`, best(target, tier, Math.round(max * 1000) / 10)]
+          return [[`${target.providerID}\0${target.configKey}`, best(target, tier, round(max * 100, 1))] as const]
       }
-      return [`${target.providerID}\0${target.configKey}`, undefined]
+      return []
     }),
   )
 }

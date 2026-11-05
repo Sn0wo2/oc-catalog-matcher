@@ -1,31 +1,29 @@
 import { type Model, Plugin } from "@opencode/plugin"
 import { MERGEABLE_KEYS, matchDonors } from "./match/donor.ts"
-import { loadCore, resolveVariants } from "./match/variants.ts"
-import { type MatchInput, type MatchResult, matchRpc } from "./rpc.ts"
+import { resolveVariants } from "./match/variants.ts"
+import { matchRpc } from "./rpc.ts"
 import { loadTargets, type Target } from "./target/load.ts"
 
 export default Plugin.define({
   id: "oc-catalog-matcher",
   setup: async (ctx) => {
-    await loadCore()
     const targets = await loadTargets(ctx.location)
-    let matches = new Map<
-      string,
-      {
-        target: Target
-        result: MatchResult
-        donor: { model: Model.Info; providerPackage: string } | undefined
-      }
-    >()
+    let matches = new Map<string, { target: Target; donor: { model: Model.Info; providerPackage: string } }>()
     let resolveMatches = () => {}
     const matchesReady = new Promise<void>((resolve) => {
       resolveMatches = resolve
     })
     const rpc = await ctx.rpc.register(matchRpc, {
       lookup: async (input) => {
-        const { providerID, modelID } = input as MatchInput
+        const { providerID, modelID } = input
         await matchesReady
-        return matches.get(`${providerID}\0${modelID}`)?.result ?? { matched: false }
+        const donor = matches.get(`${providerID}\0${modelID}`)?.donor
+        if (!donor) return { matched: false as const }
+        return {
+          matched: true as const,
+          catalogProviderID: donor.model.providerID,
+          catalogModelID: donor.model.id,
+        }
       },
     })
     const registration = await ctx.provider.transform((draft) => {
@@ -48,27 +46,16 @@ export default Plugin.define({
           const match = matched.get(`${target.providerID}\0${target.configKey}`)
           if (!match) {
             unmatched++
-            next.set(`${target.providerID}\0${target.configKey}`, {
-              target,
-              result: { matched: false },
-              donor: undefined,
-            })
             continue
           }
           if (match.modelScore < 100)
             fuzzy.push(
-              `${target.providerID}/${target.configKey} -> ` +
-                `${match.candidate.providerID}/${match.candidate.modelID} ` +
+              `${target.providerID}/${target.configKey} -> ${match.candidate.providerID}/${match.candidate.modelID} ` +
                 `(model ${match.modelScore}, provider ${match.providerScore})`,
             )
           try {
             next.set(`${target.providerID}\0${target.configKey}`, {
               target,
-              result: {
-                matched: true,
-                catalogProviderID: match.candidate.providerID,
-                catalogModelID: match.candidate.modelID,
-              },
               donor: {
                 model: structuredClone(match.candidate.model),
                 providerPackage: draft.get(match.candidate.providerID)?.provider.package ?? "",
@@ -108,15 +95,12 @@ export default Plugin.define({
     })
     const modelRegistration = await ctx.model.transform((models) => {
       for (const entry of matches.values()) {
-        if (!entry.donor) continue
         const model = models.get(entry.target.providerID, entry.target.configKey)
         if (model?.variants.length !== 0) continue
         model.variants = structuredClone(
           resolveVariants(
-            model,
-            entry.donor.model,
-            models.provider.get(entry.target.providerID)?.provider.package ?? "",
-            entry.donor.providerPackage,
+            { model, providerPackage: models.provider.get(entry.target.providerID)?.provider.package ?? "" },
+            entry.donor,
           ),
         ) as typeof model.variants
       }

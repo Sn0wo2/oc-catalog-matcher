@@ -23,21 +23,22 @@
     "ci": "bun run lint && bun run check && bun run security"
   },
   "dependencies": {
-    "@effect/platform-node-shared": "4.0.1",
     "@opencode/core": "2.1.4",
     "@opencode/plugin": "2.1.4",
     "dice-coefficient": "^2.1.1",
-    "es-toolkit": "^1.52.0",
-    "jsonc-parser": "^3.3.1"
+    "es-toolkit": "^1.53.1",
+    "jsonc-parser": "^3.3.1",
+    "zod": "^4.6.7"
   },
   "overrides": {
     "@ai-sdk/provider-utils": "4.0.33",
-    "zod@4.1.8": "4.6.6",
-    "zod@^3.25.76": "4.6.6"
+    "minimatch": "11.0.4",
+    "zod@4.1.8": "4.6.7",
+    "zod@^3.25.76": "4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
-    "@types/bun": "^1.4.3",
+    "@biomejs/biome": "^2.6.5",
+    "@types/bun": "^1.4.4",
     "typescript": "^7.0.2"
   }
 }

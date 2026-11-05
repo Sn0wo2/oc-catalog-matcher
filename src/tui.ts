@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
-import { type MatchInput, type MatchResult, matchRpc } from "./rpc.ts"
+import { matchRpc } from "./rpc.ts"
 
 export default Plugin.define({
   id: "oc-catalog-matcher",
@@ -7,15 +7,12 @@ export default Plugin.define({
     const rpc = ctx.client.rpc(matchRpc)
     let selected: string | undefined
     let request = 0
-    const showMatch = async ({ providerID, modelID }: MatchInput) => {
+    const showMatch = async (providerID: string, modelID: string) => {
       if (`${providerID}\0${modelID}` === selected) return
       selected = `${providerID}\0${modelID}`
       const current = ++request
       try {
-        const match = (await rpc.lookup({
-          providerID,
-          modelID,
-        })) as MatchResult
+        const match = await rpc.lookup({ providerID, modelID })
         if (current !== request) return
         if (!match.matched) {
           selected = undefined
@@ -31,12 +28,9 @@ export default Plugin.define({
       }
     }
     const model = ctx.ui.model.current()
-    if (model) void showMatch(model)
+    if (model) void showMatch(model.providerID, model.modelID)
     return ctx.data.on("session.model.selected", (event) => {
-      void showMatch({
-        providerID: event.data.model.providerID,
-        modelID: event.data.model.id,
-      })
+      void showMatch(event.data.model.providerID, event.data.model.id)
     })
   },
 })
