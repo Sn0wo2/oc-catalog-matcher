@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import type { Location } from "@opencode/plugin"
@@ -40,9 +41,7 @@ export async function loadTargets(location: Location.Info) {
   ]
   const documents = await Promise.all(
     paths.map(async (path) => {
-      const text = await Bun.file(path)
-        .text()
-        .catch(() => "")
+      const text = await readFile(path, "utf8").catch(() => "")
       if (!text) return undefined
       try {
         const errors: ParseError[] = []

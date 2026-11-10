@@ -2,6 +2,12 @@
   "name": "oc-catalog-matcher",
   "version": "0.0.0",
   "description": "Stop hand-writing OpenCode2 model metadata",
+  "keywords": [
+    "opencode",
+    "opencode2",
+    "opencode-plugin",
+    "opencode2-plugin"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
